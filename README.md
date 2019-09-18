@@ -51,26 +51,24 @@ go build
 ## RESTFUL API
 
 ###/v1/transaction
-Method: PUT
-Request:
+<br/>Method: PUT
+<br/>Request:
 {
 	"public_keys":["971D0EB6F0FECA0B7365E621FD9EC5E6D281604DBDD82A3A85931F62B19AE7F9"], 
 	"value": "MTIzNDU2Nzg="  
 }
-
-Response:
+<br/>Response:
 {
   "data": "",
   "isSuccess": true,
   "message": "Success"
 }
 
-
 ###/v1/transaction/:key 
-Method: GET
-Request:
+<br/>Method: GET
+<br/>Request:
 private data hash,such as "/v1/transaction/0x8696933513c80d6d8d5c7ecea31740c659824a6090ddad2d5d575def0669daec"
-Response:
+<br/>Response:
 {
   "data": "MTIzNDU2Nzg=",
   "isSuccess": true,
@@ -78,8 +76,8 @@ Response:
 }
 
 ###/v1/node/peers    
-Method: GET
-Response:
+<br/>Method: GET
+<br/>Response:
 {
   "data": [
     {
@@ -95,6 +93,6 @@ Response:
 ## TODU LIST
 
 1、local payload encrypted storage;
-2、lost payload remote recovery;
-3、peer node connected with CA;
-4、payload send with node signer;
+<br/>2、lost payload remote recovery;
+<br/>3、peer node connected with CA;
+<br/>4、payload send with node signer;
