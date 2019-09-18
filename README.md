@@ -57,16 +57,23 @@ Method: PUT
 Request:
 
 {
+
 	"public_keys":["971D0EB6F0FECA0B7365E621FD9EC5E6D281604DBDD82A3A85931F62B19AE7F9"], /*shared members pubkeys ,if multiple pubkeys separated with comma*/
+	
 	"value": "MTIzNDU2Nzg="     /*private data*/
+	
 }
 
 Response:
 
 {
+
   "data": "",
+  
   "isSuccess": true,
+  
   "message": "Success"
+  
 }
 
 
@@ -81,9 +88,13 @@ private data hash,such as "/v1/transaction/0x8696933513c80d6d8d5c7ecea31740c6598
 Response:
 
 {
+
   "data": "MTIzNDU2Nzg=",
+  
   "isSuccess": true,
+  
   "message": ""
+  
 }
 
 ###/v1/node/peers      /*get p2p peers node information*/
@@ -93,13 +104,21 @@ Method: GET
 Response:
 
 {
+
   "data": [
     {
+    
       "moniker": "node_2",
+      
       "address": "172.17.32.26:26658",
+      
       "pubkey": "971D0EB6F0FECA0B7365E621FD9EC5E6D281604DBDD82A3A85931F62B19AE7F9"
+      
     }
+    
   ],
+  
   "isSuccess": true,
+  
   "message": ""
 }
