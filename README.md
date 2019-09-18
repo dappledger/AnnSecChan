@@ -50,7 +50,7 @@ go build
 
 ## RESTFUL API
 
-###/v1/transaction
+/v1/transaction
 <br/>Method: PUT
 <br/>Request:
 {
@@ -64,7 +64,7 @@ go build
   "message": "Success"
 }
 
-###/v1/transaction/:key 
+/v1/transaction/:key 
 <br/>Method: GET
 <br/>Request:
 private data hash,such as "/v1/transaction/0x8696933513c80d6d8d5c7ecea31740c659824a6090ddad2d5d575def0669daec"
@@ -75,7 +75,7 @@ private data hash,such as "/v1/transaction/0x8696933513c80d6d8d5c7ecea31740c6598
   "message": ""
 }
 
-###/v1/node/peers    
+/v1/node/peers
 <br/>Method: GET
 <br/>Response:
 {
