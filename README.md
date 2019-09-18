@@ -91,3 +91,10 @@ Response:
   "isSuccess": true,
   "message": ""
 }
+
+## TODU LIST
+
+1、local payload encrypted storage;
+2、lost payload remote recovery;
+3、peer node connected with CA;
+4、payload send with node signer;
