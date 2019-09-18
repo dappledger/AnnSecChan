@@ -1,0 +1,12 @@
+{
+	"port":"8001",
+	"log_dir":"./log",
+	"db_path":"./data",
+	"log_level":0,
+	"p2p_moniker":"node_0",
+"p2p_privkey":"D3E3D27B7FFADAA4B09D71B32E2811625136B03FC6FE04254E552022641A7D6E971D0EB6F0FECA0B7365E621FD9EC5E6D281604DBDD82A3A85931F62B19AE7F9",
+	"p2p_listen_addr":"tcp://127.0.0.1:26658",
+	"p2p_peers":"127.0.0.1:26657",
+	"p2p_blacklist_pubkey":"",
+	"p2p_whitelist_pubkey":""
+}
