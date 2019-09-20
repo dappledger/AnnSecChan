@@ -76,6 +76,7 @@ private data hash,such as "/v1/transaction/0x8696933513c80d6d8d5c7ecea31740c6598
 }
 
 /v1/node/peers
+<br/>Function:show peers information
 <br/>Method: GET
 <br/>Response:
 {
@@ -90,9 +91,50 @@ private data hash,such as "/v1/transaction/0x8696933513c80d6d8d5c7ecea31740c6598
   "message": ""
 }
 
+/recovery/start
+<br/>Function:recover data for public_key node,is_resume=true recover from last failed key or from beginning.
+<br/>Method:POST
+<br/>Request:
+{
+	"public_key":"971D0EB6F0FECA0B7365E621FD9EC5E6D281604DBDD82A3A85931F62B19AE7F9",
+	"is_resume": true
+}
+<br/>Response:
+{
+  "data": "",
+  "message": "Success",
+  "success": true
+}
+
+/recovery/stop/:public_key
+<br/>Function:stop recovering data for public_key node.
+<br/>Method:GET
+<br/>Response:
+{
+  "data": "",
+  "message": "Success",
+  "success": true
+}
+
+/recovery/show
+<br/>Function:show recovering tasks,recovery_status=1:recover success,0:recovering,-1:recover stopped and save stopped lastkey.
+<br/>Method:GET
+<br/>Response:
+{
+  "data": [
+    {
+      "public_key": "971D0EB6F0FECA0B7365E621FD9EC5E6D281604DBDD82A3A85931F62B19AE7F9",
+      "recovery_lastkey": "",
+      "recovery_status": 1
+    }
+  ],
+  "message": "",
+  "success": true
+}
+
+
 ## TODU LIST
 
 1、local payload encrypted storage;
-<br/>2、lost payload remote recovery;
-<br/>3、peer node connected with CA;
-<br/>4、payload send with node signer;
+<br/>2、peer node connected with CA;
+<br/>3、payload send with node signer;
