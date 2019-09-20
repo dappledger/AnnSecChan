@@ -48,7 +48,12 @@ func (app *App) OnStart(c *config.Config) error {
 	{
 		v1.GET("/transaction/:key", app.handlers.HandlerTxGet)
 		v1.PUT("/transaction", app.handlers.HandlerTxPut)
+
 		v1.GET("/node/peers", app.handlers.HandlerNodePeers)
+
+		v1.POST("/recovery/start", app.handlers.HandlerStartRecovery)
+		v1.GET("/recovery/stop/:pubkey", app.handlers.HandlerStopRecover)
+		v1.GET("/recovery/show", app.handlers.HandlerGetRecover)
 	}
 	fmt.Println("Listen:", app.cnf.Port)
 	http.ListenAndServe(":"+app.cnf.Port, router)

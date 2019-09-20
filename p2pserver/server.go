@@ -50,9 +50,6 @@ func (s *P2PServer) initCnf(cfg *config.Config) (err error) {
 	if s.cnf.TxDB, err = kvdb.NewLDBDatabase(path.Join(dBPath, "tx_data"), 1024, 256); err != nil {
 		return err
 	}
-	if s.cnf.BkDB, err = kvdb.NewLDBDatabase(path.Join(dBPath, "bk_data"), 1024, 256); err != nil {
-		return err
-	}
 
 	s.cnf.Peers = common.Split(cfg.GetString("p2p_peers"), ",")
 
@@ -101,7 +98,6 @@ func (s *P2PServer) OnStart(cfg *config.Config) (err error) {
 }
 
 func (s *P2PServer) Shutdown() {
-	s.cnf.BkDB.Close()
 	s.cnf.TxDB.Close()
 	s.Sw.Shutdown()
 }

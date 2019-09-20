@@ -45,7 +45,15 @@ func CopyBytes(b []byte) (copiedBytes []byte) {
 }
 
 func Bytes2Hex(b []byte) string {
-	return hex.EncodeToString(b)
+	return strings.ToUpper(hex.EncodeToString(b))
+}
+
+func ToUpper(s string) string {
+	s = strings.ToUpper(s)
+	if strings.HasPrefix(s, "0X") {
+		return s[2:]
+	}
+	return s
 }
 
 func ParseListenAddress(s string) (string, string) {

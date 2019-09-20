@@ -16,22 +16,24 @@ import (
 )
 
 type P2PSwitch struct {
-	sw         *p2p.Switch
-	reacts     []p2preactor.P2PReactor
-	cnf        *types.P2PConfig
-	wr         wire.Wire
-	chanNotify chan *types.ReactorNotify
-	chanClose  chan struct{}
+	sw               *p2p.Switch
+	reacts           []p2preactor.P2PReactor
+	cnf              *types.P2PConfig
+	wr               wire.Wire
+	mapRecoveryTasks map[string]*types.RecoveryTask
+	chanNotify       chan *types.ReactorNotify
+	chanClose        chan struct{}
 }
 
 func NewP2PSwitch(cnf *types.P2PConfig, reacts []p2preactor.P2PReactor) *P2PSwitch {
 	return &P2PSwitch{
-		sw:         p2p.NewSwitch(viper.New()),
-		reacts:     reacts,
-		cnf:        cnf,
-		wr:         new(wire.WireRlp),
-		chanNotify: make(chan *types.ReactorNotify, 1024),
-		chanClose:  make(chan struct{}),
+		sw:               p2p.NewSwitch(viper.New()),
+		reacts:           reacts,
+		cnf:              cnf,
+		wr:               new(wire.WireRlp),
+		mapRecoveryTasks: make(map[string]*types.RecoveryTask, 0),
+		chanNotify:       make(chan *types.ReactorNotify, 1024),
+		chanClose:        make(chan struct{}),
 	}
 }
 
@@ -80,6 +82,7 @@ func (p *P2PSwitch) prepareP2PSwitch() error {
 	return nil
 }
 
+//filter connect p2p node with blacklist or whitelist
 func (p *P2PSwitch) funcPubKeyFilter(pubkey crypto.PubKey) error {
 	if len(p.cnf.WhiteListPubkeys) > 0 {
 		for _, accessPubkey := range p.cnf.WhiteListPubkeys {
@@ -123,10 +126,11 @@ func (p *P2PSwitch) SendMsg(pubKey string, chanId byte, msg interface{}) (err er
 	}
 	return nil
 errDeal:
-	p.backupSendMsg(pubKey, chanId, bMsg)
+	//p.backupSendMsg(pubKey, chanId, bMsg)
 	return err
 }
 
+//handler local message with chanId,such as store payload in the local.
 func (p *P2PSwitch) localHandler(chanId byte, msg interface{}) error {
 	switch chanId {
 	case types.Reactor_Ledger_ChanID:
@@ -147,6 +151,7 @@ func (p *P2PSwitch) localHandler(chanId byte, msg interface{}) error {
 	}
 }
 
+//get p2p peer nodes information
 func (p *P2PSwitch) Peers() (peers []*types.Peer) {
 	for _, peer := range p.sw.Peers().List() {
 		pr := &types.Peer{
@@ -159,6 +164,7 @@ func (p *P2PSwitch) Peers() (peers []*types.Peer) {
 	return
 }
 
+//send message to peer
 func (p *P2PSwitch) sendMsg(sendPeer *p2p.Peer, chanId byte, bMsg []byte) error {
 	if sendPeer.Send(chanId, bMsg) {
 		return nil
@@ -166,48 +172,103 @@ func (p *P2PSwitch) sendMsg(sendPeer *p2p.Peer, chanId byte, bMsg []byte) error 
 	return fmt.Errorf("msg send to %s error;", sendPeer.String())
 }
 
-func (p *P2PSwitch) backupSendMsg(pubKey string, chanId byte, bMsg []byte) error {
-
-	var (
-		bacKey  []byte
-		bkValue []byte
-	)
-	bkValue = append(bkValue, chanId)
-	bkValue = append(bkValue, bMsg...)
-
-	bacKey = append(common.Hex2Bytes(pubKey), common.Hash(bkValue)...)
-	if err := p.cnf.BkDB.Put(bacKey, bkValue); err != nil {
-		log.GetLog().LogError("backupsendmsg put error:", err.Error(), pubKey, chanId)
-	}
-	log.GetLog().LogError("SendMsg Error We Backup", pubKey, chanId)
-	return nil
+func (p *P2PSwitch) genRecoveryKey(pubKey string) []byte {
+	return append(types.Backup_LastKey_Name, common.Hex2Bytes(pubKey)...)
 }
 
-func (p *P2PSwitch) restoreSendMsg(pubKey string) error {
-	sendP := p.sw.Peers().Get(pubKey)
-	if sendP == nil {
-		log.GetLog().LogError("restoreSendMsg failed,peer ", pubKey, "not connected")
-		return fmt.Errorf("peer %s not connected", pubKey)
-	}
-	handler := func(k []byte, v []byte) error {
-		if err := p.sendMsg(sendP, v[0], v[1:]); err != nil {
-			log.GetLog().LogError("restoreSendMsg sendMsg error:", err.Error(), common.Bytes2Hex(k))
-			return err
-		}
-		if err := p.cnf.BkDB.Delete(k); err != nil {
-			log.GetLog().LogError("restoreSendMsg delete key:", common.Bytes2Hex(k), "error:", err.Error())
-		}
-		log.GetLog().LogDebug("restoreSendMsg success key:", common.Bytes2Hex(k))
+func (p *P2PSwitch) getRecoveryLastKey(pubKey string) []byte {
+	key, err := p.cnf.TxDB.Get(p.genRecoveryKey(pubKey))
+	if err != nil {
 		return nil
 	}
-	return p.cnf.BkDB.GetWithPrefixHandler(common.Hex2Bytes(pubKey), handler)
+	return key
 }
 
+func (p *P2PSwitch) putRecoveryLastKey(pubKey string, key []byte) error {
+	return p.cnf.TxDB.Put(p.genRecoveryKey(pubKey), key)
+}
+
+//add recoverytask , isRsume=true, recovery payload offset last failed key; false,recovery payload from begin.
+func (p *P2PSwitch) AddRecoveryTask(pubKey string, isResume bool) {
+	go func() {
+		t := types.NewRecoveryTask(pubKey, isResume)
+		p.mapRecoveryTasks[pubKey] = t
+		if err := p.recoverySendMsg(t); err != nil {
+			log.GetLog().LogError("recoverySendMsg failed , peer ", pubKey, "not connected")
+			return
+		}
+		t.SetSuccess()
+	}()
+}
+
+//stop one pubkey peer node recovery task
+func (p *P2PSwitch) StopRecoveryTask(pubKey string) error {
+	t, ok := p.mapRecoveryTasks[pubKey]
+	if ok {
+		t.Close()
+		delete(p.mapRecoveryTasks, pubKey)
+		return nil
+	}
+	return errors.New("task not exist")
+}
+
+//get recovery tasks
+func (p *P2PSwitch) GetRecoveryTasks() []*types.RecoveryTask {
+	var tasks []*types.RecoveryTask
+	for _, t := range p.mapRecoveryTasks {
+		tasks = append(tasks, t)
+	}
+	return tasks
+}
+
+//recovery payload send to peer node who lost data.
+func (p *P2PSwitch) recoverySendMsg(t *types.RecoveryTask) error {
+	sendP := p.sw.Peers().Get(t.PubKey)
+	if sendP == nil {
+		return fmt.Errorf("peer %s not connected", t.PubKey)
+	}
+	handler := func(k []byte, v []byte) error {
+		select {
+		case <-t.Wait():
+			p.putRecoveryLastKey(t.PubKey, k)
+			return errors.New("recoverySendMsg closed")
+		case <-p.chanClose:
+			t.SetFailed(k)
+			p.putRecoveryLastKey(t.PubKey, k)
+			return errors.New("p2p server closed")
+		default:
+			tryCount := 3
+			for {
+				msg := &types.LegerTransMsg{Key: common.Hash(v), Value: v}
+				bMsg, err := p.wr.Encode(msg)
+				if err != nil {
+					return err
+				}
+				if err := p.sendMsg(sendP, types.Reactor_Ledger_ChanID, bMsg); err != nil {
+					tryCount--
+					if tryCount <= 0 {
+						t.SetFailed(k)
+						p.putRecoveryLastKey(t.PubKey, k)
+						return err
+					}
+				}
+				break
+			}
+			return nil
+		}
+
+	}
+	if t.IsResume() {
+		return p.cnf.TxDB.GetWithPrefixHandler(nil, p.getRecoveryLastKey(t.PubKey), handler)
+	}
+	return p.cnf.TxDB.GetWithPrefixHandler(nil, nil, handler)
+}
+
+//handler notify from reactor with chan.
 func (p *P2PSwitch) routineHandlerNoticeFromReactor() {
 	for {
 		select {
-		case msg := <-p.chanNotify:
-			p.handlerNotify(msg)
+		case <-p.chanNotify:
 		case <-p.chanClose:
 			log.GetLog().LogDebug("routine handler notify stop")
 			return
@@ -215,25 +276,7 @@ func (p *P2PSwitch) routineHandlerNoticeFromReactor() {
 	}
 }
 
-func (p *P2PSwitch) handlerNotify(msg interface{}) {
-	if !(reflect.TypeOf(&types.ReactorNotify{}) == reflect.TypeOf(msg)) {
-		log.GetLog().LogError("handlerNotify not NotifyMsg type")
-		return
-	}
-	nMsg := msg.(*types.ReactorNotify)
-	switch nMsg.NotifyType {
-	case types.Reactor_Leger_Notify_Add_Peer:
-		switch nMsg.Message.(type) {
-		case string:
-			go p.restoreSendMsg(nMsg.Message.(string))
-		default:
-			log.GetLog().LogError("handlerNotify wrong params", nMsg.Message)
-		}
-	default:
-		log.GetLog().LogError("handlerNotify wrong NotifyType", nMsg.NotifyType)
-	}
-}
-
+//be active in getting message from reactor with reactName and optype.
 func (p *P2PSwitch) GetData(reactName string, op byte, params []byte) ([]byte, error) {
 	for _, react := range p.reacts {
 		if react.GetReactName() == reactName {

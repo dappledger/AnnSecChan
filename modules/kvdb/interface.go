@@ -20,7 +20,7 @@ type Database interface {
 	Put(key []byte, value []byte) error
 	Get(key []byte) ([]byte, error)
 	GetWithPrefix([]byte, []byte, uint32) ([]*KVResult, error)
-	GetWithPrefixHandler([]byte, handlerRange) error
+	GetWithPrefixHandler([]byte, []byte, handlerRange) error
 	Has(key []byte) (bool, error)
 	Delete(key []byte) error
 	Close()

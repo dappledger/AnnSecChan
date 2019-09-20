@@ -21,6 +21,45 @@ func NewHandlers(s *p2pserver.P2PServer) *Handlers {
 	}
 }
 
+func (h *Handlers) HandlerStartRecovery(c *gin.Context) {
+	var (
+		err        error
+		reqRecover ReqStartRecoverTask
+	)
+	if err = c.BindJSON(&reqRecover); err != nil {
+		goto errDeal
+	}
+	h.p2pServer.Sw.AddRecoveryTask(common.ToUpper(reqRecover.PubKey), reqRecover.IsResume)
+	HandleSuccessMsg(c, "HandlerRecoveryPayload", "Success", "")
+	return
+errDeal:
+	HandleErrorMsg(c, "HandlerRecoveryPayload", err.Error())
+	return
+}
+
+func (h *Handlers) HandlerStopRecover(c *gin.Context) {
+	var (
+		err error
+	)
+	pubKey := c.Param("pubkey")
+	if len(pubKey) <= 0 {
+		err = errors.New("params error")
+	}
+	if err = h.p2pServer.Sw.StopRecoveryTask(common.ToUpper(pubKey)); err != nil {
+		goto errDeal
+	}
+	HandleSuccessMsg(c, "HandlerStopRecover", "Success", "")
+	return
+errDeal:
+	HandleErrorMsg(c, "HandlerStopRecover", err.Error())
+	return
+}
+
+func (h *Handlers) HandlerGetRecover(c *gin.Context) {
+	tasks := h.p2pServer.Sw.GetRecoveryTasks()
+	HandleSuccessMsg(c, "HandlerGetRecover", "", tasks)
+}
+
 func (h *Handlers) HandlerNodePeers(c *gin.Context) {
 	var err error
 	peers := h.p2pServer.Sw.Peers()
@@ -47,15 +86,11 @@ func (h *Handlers) HandlerTxPut(c *gin.Context) {
 
 	msg = &types.LegerTransMsg{Key: common.Hash(reqPut.Value), Value: reqPut.Value}
 
-	if err = msg.CheckLegerTransMsg(); err != nil {
-		goto errDeal
-	}
-
 	if err = h.multiSendMsg(reqPut.PubKeys, types.Reactor_Ledger_ChanID, msg); err != nil {
 		goto errDeal
 	}
 
-	HandleSuccessMsg(c, "HandlerPut", "Success", "")
+	HandleSuccessMsg(c, "HandlerPut", "Success", common.Bytes2Hex(msg.Key))
 	return
 errDeal:
 	HandleErrorMsg(c, "HandlerPut", err.Error())
@@ -83,6 +118,7 @@ errDeal:
 
 func (h *Handlers) OnClose() {}
 
+//parallel sendmsg to p2p nodes
 func (h *Handlers) multiSendMsg(pubKeys []string, chanId byte, msg interface{}) error {
 	if len(pubKeys) <= 0 {
 		return h.p2pServer.Sw.SendMsg("", chanId, msg)
@@ -91,9 +127,10 @@ func (h *Handlers) multiSendMsg(pubKeys []string, chanId byte, msg interface{}) 
 	defer close(chanResult)
 
 	for _, pubKey := range pubKeys {
+
 		go func(pubKey string, chanId byte, msg interface{}, chanResult chan error) {
 			chanResult <- h.p2pServer.Sw.SendMsg(pubKey, chanId, msg)
-		}(pubKey, chanId, msg, chanResult)
+		}(common.ToUpper(pubKey), chanId, msg, chanResult)
 	}
 	strError := ""
 	for i := 0; i < len(pubKeys); i++ {

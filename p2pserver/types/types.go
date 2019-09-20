@@ -10,6 +10,10 @@ import (
 )
 
 var (
+	Backup_LastKey_Name = []byte("backupkey-")
+)
+
+var (
 	Reactor_Ledger_Name string = "ledgerReactor"
 
 	Reactor_Ledger_ChanID byte = 0x01
@@ -36,7 +40,6 @@ type P2PConfig struct {
 	BlackListPubkeys []crypto.PubKey
 	WhiteListPubkeys []crypto.PubKey
 	TxDB             kvdb.Database
-	BkDB             kvdb.Database
 	CrypType         byte
 }
 
@@ -75,4 +78,46 @@ func (m *LegerTransMsg) CheckLegerTransMsg() error {
 
 func (m *LegerTransMsg) String() string {
 	return fmt.Sprintf("key:%s,value:%s", common.Bytes2Hex(m.Key), common.Bytes2Hex(m.Value))
+}
+
+type RecoveryTask struct {
+	PubKey    string `json:"public_key"`
+	LastKey   string `json:"recovery_lastkey"`
+	Status    int    `json:"recovery_status"`
+	isResume  bool
+	chanClose chan struct{}
+}
+
+func NewRecoveryTask(pubkey string, isResume bool) *RecoveryTask {
+	return &RecoveryTask{
+		PubKey:    pubkey,
+		chanClose: make(chan struct{}),
+		isResume:  isResume,
+	}
+}
+
+func (r *RecoveryTask) Close() {
+	close(r.chanClose)
+}
+
+func (r *RecoveryTask) IsResume() bool {
+	return r.isResume
+}
+
+func (r *RecoveryTask) Wait() chan struct{} {
+	return r.chanClose
+}
+
+func (r *RecoveryTask) SetFailed(lastKey []byte) {
+	r.Status = -1
+	r.LastKey = common.Bytes2Hex(lastKey)
+}
+
+func (r *RecoveryTask) SetSuccess() {
+	r.Status = 1
+}
+
+func (r *RecoveryTask) SetManualStop(lastKey []byte) {
+	r.Status = 2
+	r.LastKey = common.Bytes2Hex(lastKey)
 }

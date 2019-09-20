@@ -166,9 +166,19 @@ func (self *LDBDatabase) Get(key []byte) ([]byte, error) {
 
 type handlerRange func([]byte, []byte) error
 
-func (self *LDBDatabase) GetWithPrefixHandler(prefix []byte, handler handlerRange) error {
+func (self *LDBDatabase) GetWithPrefixHandler(prefix []byte, seekey []byte, handler handlerRange) error {
 	iter := self.db.NewIterator(util.BytesPrefix(prefix), nil)
 	defer iter.Release()
+	if len(seekey) > 0 {
+		iter.Seek([]byte(seekey))
+		if 0 != bytes.Compare(iter.Key(), seekey) {
+			return errors.ErrNotFound
+		}
+		if err := handler(iter.Key(), iter.Value()); err != nil {
+			return err
+		}
+	}
+
 	for iter.Next() {
 		if err := handler(iter.Key(), iter.Value()); err != nil {
 			return err
@@ -392,7 +402,7 @@ func (dt *table) Get(key []byte) ([]byte, error) {
 	return dt.db.Get(append([]byte(dt.prefix), key...))
 }
 
-func (dt *table) GetWithPrefixHandler(prefix []byte, handler handlerRange) error {
+func (dt *table) GetWithPrefixHandler(prefix []byte, seekey []byte, handler handlerRange) error {
 	return nil
 }
 

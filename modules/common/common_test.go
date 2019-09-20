@@ -22,4 +22,6 @@ func TestBench(t *testing.T) {
 	t.Log(Bytes2Hex(h))
 
 	t.Log(IsHash(Bytes2Hex(h)))
+
+	t.Log(ToUpper("0xe3f4532"))
 }

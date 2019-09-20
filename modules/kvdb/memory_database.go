@@ -52,7 +52,7 @@ func (db *MemDatabase) Set(key []byte, value []byte) {
 	db.Put(key, value)
 }
 
-func (db *MemDatabase) GetWithPrefixHandler(prefix []byte, handler handlerRange) error {
+func (db *MemDatabase) GetWithPrefixHandler(prefix []byte, seekey []byte, handler handlerRange) error {
 	return nil
 }
 
