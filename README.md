@@ -64,6 +64,21 @@ go build
   "message": "Success"
 }
 
+/v1/transaction/withsignature
+<br/>Method: PUT
+<br/>Request:
+{
+	"public_keys":["971D0EB6F0FECA0B7365E621FD9EC5E6D281604DBDD82A3A85931F62B19AE7F9"], 
+	"value": "MTIzNDU2Nzg=",
+	"sign":"",
+}
+<br/>Response:
+{
+  "data": "",
+  "isSuccess": true,
+  "message": "Success"
+}
+
 /v1/transaction/:key 
 <br/>Method: GET
 <br/>Request:
@@ -137,4 +152,4 @@ private data hash,such as "/v1/transaction/0x8696933513c80d6d8d5c7ecea31740c6598
 
 1、local payload encrypted storage;
 <br/>2、peer node connected with CA;
-<br/>3、payload send with node signer;
+

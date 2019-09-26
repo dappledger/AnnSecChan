@@ -82,6 +82,10 @@ func (s *P2PServer) initCnf(cfg *config.Config) (err error) {
 	return nil
 }
 
+func (s *P2PServer) GetNodePubKey() crypto.PubKey {
+	return s.cnf.PrivKey.PubKey()
+}
+
 func (s *P2PServer) OnStart(cfg *config.Config) (err error) {
 
 	if err = s.initCnf(cfg); err != nil {

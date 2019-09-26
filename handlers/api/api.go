@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/dappledger/AnnChain/gemmill/go-crypto"
 	"github.com/dappledger/AnnSecChan/modules/common"
 	"github.com/dappledger/AnnSecChan/modules/log"
 	"github.com/dappledger/AnnSecChan/p2pserver"
@@ -71,6 +72,37 @@ func (h *Handlers) HandlerNodePeers(c *gin.Context) {
 	return
 errDeal:
 	HandleErrorMsg(c, "HandlerNodePeers", err.Error())
+	return
+}
+
+func (h *Handlers) HandlerTxPutWithSign(c *gin.Context) {
+	var (
+		err    error
+		reqPut ReqSignPut
+		sig    crypto.Signature
+		hash   []byte
+		msg    *types.LegerTransMsg
+	)
+	if err = c.BindJSON(&reqPut); err != nil {
+		goto errDeal
+	}
+	if sig, err = crypto.SignatureFromBytes(reqPut.Sign); err != nil {
+		goto errDeal
+	}
+	hash = common.Hash(reqPut.Value)
+	if !h.p2pServer.GetNodePubKey().VerifyBytes(hash, sig) {
+		err = errors.New("check signature error")
+		goto errDeal
+	}
+	msg = &types.LegerTransMsg{Key: hash, Value: reqPut.Value}
+	if err = h.multiSendMsg(reqPut.PubKeys, types.Reactor_Ledger_ChanID, msg); err != nil {
+		goto errDeal
+	}
+
+	HandleSuccessMsg(c, "HandlerTxPutWithSign", "Success", common.Bytes2Hex(msg.Key))
+	return
+errDeal:
+	HandleErrorMsg(c, "HandlerTxPutWithSign", err.Error())
 	return
 }
 

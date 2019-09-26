@@ -48,6 +48,7 @@ func (app *App) OnStart(c *config.Config) error {
 	{
 		v1.GET("/transaction/:key", app.handlers.HandlerTxGet)
 		v1.PUT("/transaction", app.handlers.HandlerTxPut)
+		v1.PUT("/transaction/withsignature", app.handlers.HandlerTxPutWithSign)
 
 		v1.GET("/node/peers", app.handlers.HandlerNodePeers)
 
