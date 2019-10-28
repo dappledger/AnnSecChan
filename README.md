@@ -148,8 +148,4 @@ private data hash,such as "/v1/transaction/0x8696933513c80d6d8d5c7ecea31740c6598
 }
 
 
-## TODU LIST
-
-1、local payload encrypted storage;
-<br/>2、peer node connected with CA;
 

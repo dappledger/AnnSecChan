@@ -5,6 +5,7 @@ import (
 
 	"github.com/dappledger/AnnChain/gemmill/go-wire"
 	"github.com/dappledger/AnnChain/gemmill/p2p"
+	cryp "github.com/dappledger/AnnSecChan/modules/crypto"
 	"github.com/dappledger/AnnSecChan/modules/log"
 	"github.com/dappledger/AnnSecChan/p2pserver/types"
 	lwr "github.com/dappledger/AnnSecChan/p2pserver/wire"
@@ -36,10 +37,18 @@ func (p *P2PLegeReact) ReactNotify(chanReact chan *types.ReactorNotify) {
 	p.react.ChanNotify = chanReact
 }
 
+func (p *P2PLegeReact) secretGet(key []byte) ([]byte, error) {
+	value, err := p.cnf.TxDB.Get(key)
+	if err != nil {
+		return nil, err
+	}
+	return cryp.Decrypt(p.cnf.PrivKey, value)
+}
+
 func (p *P2PLegeReact) GetData(op byte, params []byte) ([]byte, error) {
 	switch op {
 	case types.Reactor_Leger_Query_Tx:
-		return p.cnf.TxDB.Get(params)
+		return p.secretGet(params)
 	default:
 		return nil, fmt.Errorf("op %v not define", op)
 	}
@@ -98,6 +107,17 @@ func (b *LegeReact) RemovePeer(peer *p2p.Peer, reason interface{}) {
 	log.GetLog().LogDebug("LegeReact server removePeer :", peer.String(), "reason:", reason)
 }
 
+func (b *LegeReact) secretPut(key, value []byte) error {
+	value, err := cryp.Encrypt(b.cnf.PrivKey.PubKey(), value)
+	if err != nil {
+		return err
+	}
+	if err := b.cnf.TxDB.Put(key, value); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (b *LegeReact) Receive(chID byte, src *p2p.Peer, msgBytes []byte) {
 	byt := make([]byte, 0)
 	if err := wire.ReadBinaryBytes(msgBytes, &byt); err != nil {
@@ -115,7 +135,7 @@ func (b *LegeReact) Receive(chID byte, src *p2p.Peer, msgBytes []byte) {
 			log.GetLog().LogError("msg check failed:", err.Error())
 			return
 		}
-		if err := b.cnf.TxDB.Put(msg.Key, msg.Value); err != nil {
+		if err := b.secretPut(msg.Key, msg.Value); err != nil {
 			log.GetLog().LogError("DB put error:", err.Error())
 			return
 		}

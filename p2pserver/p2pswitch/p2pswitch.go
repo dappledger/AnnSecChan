@@ -8,6 +8,7 @@ import (
 	"github.com/dappledger/AnnChain/gemmill/go-crypto"
 	"github.com/dappledger/AnnChain/gemmill/p2p"
 	"github.com/dappledger/AnnSecChan/modules/common"
+	cryp "github.com/dappledger/AnnSecChan/modules/crypto"
 	"github.com/dappledger/AnnSecChan/modules/log"
 	"github.com/dappledger/AnnSecChan/p2pserver/p2preactor"
 	"github.com/dappledger/AnnSecChan/p2pserver/types"
@@ -126,8 +127,19 @@ func (p *P2PSwitch) SendMsg(pubKey string, chanId byte, msg interface{}) (err er
 	}
 	return nil
 errDeal:
-	//p.backupSendMsg(pubKey, chanId, bMsg)
 	return err
+}
+
+func (p *P2PSwitch) secretPut(key, value []byte) error {
+	value, err := cryp.Encrypt(p.cnf.PrivKey.PubKey(), value)
+	if err != nil {
+		return err
+	}
+
+	if err := p.cnf.TxDB.Put(key, value); err != nil {
+		return err
+	}
+	return nil
 }
 
 //handler local message with chanId,such as store payload in the local.
@@ -141,7 +153,7 @@ func (p *P2PSwitch) localHandler(chanId byte, msg interface{}) error {
 			log.GetLog().LogError("localhandler msg check failed:", err.Error())
 			return err
 		}
-		if err := p.cnf.TxDB.Put(msg.(*types.LegerTransMsg).Key, msg.(*types.LegerTransMsg).Value); err != nil {
+		if err := p.secretPut(msg.(*types.LegerTransMsg).Key, msg.(*types.LegerTransMsg).Value); err != nil {
 			log.GetLog().LogError("localhandler DB put error:", err.Error())
 			return err
 		}
@@ -239,7 +251,11 @@ func (p *P2PSwitch) recoverySendMsg(t *types.RecoveryTask) error {
 		default:
 			tryCount := 3
 			for {
-				msg := &types.LegerTransMsg{Key: common.Hash(v), Value: v}
+				value, err := cryp.Decrypt(p.cnf.PrivKey, v)
+				if err != nil {
+					return err
+				}
+				msg := &types.LegerTransMsg{Key: k, Value: value}
 				bMsg, err := p.wr.Encode(msg)
 				if err != nil {
 					return err
